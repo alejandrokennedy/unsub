@@ -1,0 +1,7 @@
+onlyBuiltDependencies:
+  - '@bundled-es-modules/glob'
+  - esbuild
+  - sharp
+  - style-dictionary
+  - svelte-preprocess
+  - workerd

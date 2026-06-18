@@ -1,0 +1,10 @@
+.DS_Store
+node_modules
+.svelte
+.svelte-kit
+build
+functions
+.env
+raw-data
+.sda-cache
+.tmp
