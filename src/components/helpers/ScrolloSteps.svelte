@@ -36,7 +36,7 @@
 		{#each chapters as { text }, i}
 			{@const activeStep = step === i}
 			<div class="step" class:activeStep>
-				<p>{@html text}</p>
+				<div class="prose">{@html text}</div>
 				<!-- <p>{text}</p> -->
 			</div>
 		{/each}
@@ -68,7 +68,7 @@
 	}
 
 	/* Step text container - mechanical necessities */
-	.step p {
+	.step .prose {
 		pointer-events: auto;
 		transition:
 			background var(--scrollo-transition-duration, 300ms) ease,
@@ -85,7 +85,7 @@
 	}
 
 	/* Step text - inactive state (light mode default) */
-	.step p {
+	.step .prose {
 		padding: var(--scrollo-text-padding, 1rem);
 		background: var(--scrollo-text-bg, whitesmoke);
 		color: var(--scrollo-text-color, #aaa);
@@ -99,14 +99,14 @@
 	}
 
 	/* Step text - active state (light mode default) */
-	.step.activeStep p {
+	.step.activeStep .prose {
 		background: var(--scrollo-text-bg-activeStep, white);
 		color: var(--scrollo-text-color-activeStep, black);
 		opacity: var(--scrollo-text-opacity-activeStep, 0.94);
 	}
 
 	/* Dark mode overrides - when inside .scrollo-dark */
-	:global(.scrollo-dark) .step p {
+	:global(.scrollo-dark) .step .prose {
 		background: var(--scrollo-text-bg-dark, rgba(20, 20, 20, 0.9));
 		color: var(--scrollo-text-color-dark, #555);
 		box-shadow: var(
@@ -115,18 +115,18 @@
 		);
 	}
 
-	:global(.scrollo-dark) .step.activeStep p {
+	:global(.scrollo-dark) .step.activeStep .prose {
 		background: var(--scrollo-text-bg-activeStep-dark, rgba(45, 45, 45, 0.95));
 		color: var(--scrollo-text-color-activeStep-dark, white);
 	}
 
 	/* Nested paragraph spacing (for multi-paragraph steps) */
-	.step p :global(p) {
+	.step .prose :global(p) {
 		margin-top: var(--scrollo-nested-p-margin-top, 0.4rem);
 		margin-bottom: var(--scrollo-nested-p-margin-bottom, 16px);
 	}
 
-	.step p :global(p:last-child) {
+	.step .prose :global(p:last-child) {
 		margin-bottom: var(--scrollo-nested-p-margin-bottom-last, 0.4rem);
 	}
 
@@ -159,13 +159,13 @@
 		}
 
 		/* Presentation - mobile text styling */
-		.step p {
+		.step .prose {
 			padding: var(--scrollo-text-padding-mobile, 0.1rem 1rem);
 			overflow: auto;
 		}
 
 		/* Mobile active state (includes text-stroke effect) */
-		.step.activeStep p {
+		.step.activeStep .prose {
 			background: var(
 				--scrollo-text-bg-activeStep-mobile,
 				rgba(255, 255, 255, 0.75)
@@ -193,7 +193,7 @@
 		}
 
 		/* TODO: Dark mode mobile overrides - uncomment and customize when needed */
-		/* :global(.scrollo-dark) .step.activeStep p {
+		/* :global(.scrollo-dark) .step.activeStep .prose {
 			background: var(--scrollo-text-bg-activeStep-mobile-dark, rgba(45, 45, 45, 0.95));
 			text-shadow: var(--scrollo-text-stroke-shadow-dark, none);
 		} */
@@ -221,7 +221,7 @@
 
 	/* TODO: Review - Span styling, currently commented out in markup */
 	/*
-	.step p :global(span) {
+	.step .prose :global(span) {
 		padding: 0.1rem;
 		border-radius: 3px;
 		font-weight: 600;
