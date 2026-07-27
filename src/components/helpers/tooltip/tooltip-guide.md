@@ -1,317 +1,169 @@
-# Tooltip - Complete Guide
+# Tooltip — Guide
 
-A general-purpose Svelte 5 tooltip component optimized for SVG visualizations with smart edge detection and proper stroke rendering.
+A general-purpose, framework-agnostic tooltip for Svelte 5. It's a **positioning
+shell**: you give it a viewport coordinate and content, and it renders a
+`position: fixed` box that follows that point, measures itself, flips/clamps so it
+never clips at a viewport edge, and portals out of its DOM subtree so nothing paints
+over it. It works with hand-authored SVG/D3, SveltePlot, or plain HTML.
 
----
+## Files (all in `src/components/helpers/tooltip/`)
 
-## Quick Start
-
-```svelte
-<script>
-  import Tooltip from "$components/figure/Tooltip.svelte";
-  
-  let showTooltip = $state(false);
-  let tooltipX = $state(0);
-  let tooltipY = $state(0);
-  let hoveredData = $state(null);
-</script>
-
-<!-- Your SVG -->
-<svg>
-  <path
-    onmousemove={(e) => {
-      tooltipX = e.clientX;
-      tooltipY = e.clientY;
-      hoveredData = someData;
-      showTooltip = true;
-    }}
-    onmouseleave={() => showTooltip = false}
-  />
-</svg>
-
-<!-- Tooltip -->
-{#if showTooltip}
-  <Tooltip x={tooltipX} y={tooltipY} offset={12}>
-    {#snippet children()}
-      <div class="tooltip-content">
-        <strong>{hoveredData.title}</strong>
-        <p>{hoveredData.value}</p>
-      </div>
-    {/snippet}
-  </Tooltip>
-{/if}
-```
+| File | Purpose |
+|------|---------|
+| `Tooltip.svelte` | The positioning shell. Import this. |
+| `AnchoredTooltip.svelte` | Adapter that anchors the shell to a *data point* (see "SveltePlot"). |
+| `Tooltip.example.svelte` | Standalone demo page. **Do not import into real code** — it renders a full demo (heading, sample SVG, explanations). Importing it by mistake is how you get a giant tooltip. |
+| `tooltip-guide.md` | This file. |
 
 ---
 
-## Props
+## `Tooltip.svelte`
+
+### Props
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `x` | number | 0 | X coordinate (viewport) |
-| `y` | number | 0 | Y coordinate (viewport) |
-| `offset` | number | 8 | Distance from cursor (px) |
-| `children` | snippet | required | Tooltip content |
+| `x` | number | 0 | Anchor X, **viewport** coords (e.g. `event.clientX`). |
+| `y` | number | 0 | Anchor Y, viewport coords. |
+| `offset` | number | 8 | Gap from the anchor along the `side` axis (px). |
+| `margin` | number | 8 | Viewport edge inset the box is kept clear of (px). |
+| `align` | `"left"` \| `"center"` \| `"right"` | `"left"` | Preferred horizontal justification relative to `x`. Flips/clamps near edges. |
+| `side` | `"top"` \| `"bottom"` | `"bottom"` | Preferred vertical side relative to `y`. Flips near the matching edge. |
+| `target` | string \| HTMLElement \| null | null | Portal destination (see "Portaling"). Selector is matched against the box's **ancestors** (`closest`); `null` → `<body>`. |
+| `children` | snippet | required | Tooltip content. |
 
----
-
-## Key Features
-
-### 1. Smart Edge Detection
-Automatically flips position when near viewport edges:
-- **Right edge** (<250px): Flips left
-- **Bottom edge** (<150px): Flips up
-- **Corner**: Flips both directions
-
-### 2. Viewport Positioning
-Uses `position: fixed` to match `event.clientX/clientY` coordinates. Never use `position: absolute` with these coordinates.
-
-### 3. Non-Interfering
-`pointer-events: none` built-in - tooltip won't interfere with mouse events.
-
-### 4. Mouse Offset
-Default 8px offset prevents tooltip from covering hover target (prevents flickering).
-
----
-
-## SVG-Specific Usage
-
-### Coordinate System
-✅ **Use**: `event.clientX` and `event.clientY` (viewport coordinates)  
-❌ **Don't use**: `event.layerX`, `event.offsetX` (wrong coordinate system)
-
-### Hover Effect with Proper Stroke
-To add a hover effect that doesn't cover the fill:
+### Quick start (SVG / D3 — cursor-following)
 
 ```svelte
 <script>
-  let hoveredId = $state(null);
+  import Tooltip from "$components/helpers/tooltip/Tooltip.svelte";
+
+  let hovered = $state(null);
+  let x = $state(0), y = $state(0);
 </script>
 
 <svg>
-  <!-- Render non-hovered items first -->
-  {#each items as item}
-    {#if hoveredId !== item.id}
-      <path d={item.path} fill={item.color} ... />
-    {/if}
-  {/each}
-  
-  <!-- Render hovered item LAST (paints on top) -->
-  {#each items as item}
-    {#if hoveredId === item.id}
-      <path d={item.path} fill={item.color} class="hovered" ... />
-    {/if}
-  {/each}
+  <path
+    onpointermove={(e) => { x = e.clientX; y = e.clientY; hovered = data; }}
+    onpointerleave={() => (hovered = null)}
+  />
 </svg>
 
-<style>
-  path {
-    stroke: white;
-    stroke-width: 0.7px;
-    transition: stroke 0.15s, stroke-width 0.15s;
-  }
-  
-  path.hovered {
-    stroke: #333;
-    stroke-width: 2px;
-    paint-order: stroke fill; /* Stroke pushes outward, doesn't cover fill */
-  }
-</style>
-```
-
-**Why this works:**
-- **SVG has no z-index** - elements paint in DOM order
-- **Render hovered last** - ensures its stroke paints on top of neighbors
-- **`paint-order: stroke fill`** - stroke appears outside fill instead of covering it
-
----
-
-## Svelte 4 → 5 Migration
-
-```svelte
-<!-- Svelte 4 -->
-<script>
-  export let x = 0;
-  export let y = 0;
-  $: left = `${x}px`;
-  $: top = `${y}px`;
-</script>
-<div><slot /></div>
-
-<!-- Svelte 5 -->
-<script>
-  let { x = 0, y = 0, children } = $props();
-  let left = $derived(`${x}px`);
-  let top = $derived(`${y}px`);
-</script>
-<div>{@render children()}</div>
-```
-
----
-
-## Complete Example: Map Tooltips
-
-```svelte
-<script>
-  import Tooltip from "$components/figure/Tooltip.svelte";
-  
-  let showTooltip = $state(false);
-  let tooltipX = $state(0);
-  let tooltipY = $state(0);
-  let hoveredCountry = $state(null);
-  
-  const countries = [...]; // Your country data
-  
-  function handleHover(event, country) {
-    tooltipX = event.clientX;
-    tooltipY = event.clientY;
-    hoveredCountry = country;
-    showTooltip = true;
-  }
-</script>
-
-<svg width={width} height={height}>
-  <!-- Non-hovered countries -->
-  {#each countries as country}
-    {#if hoveredCountry?.id !== country.id}
-      <path
-        d={country.path}
-        fill={country.color}
-        onmousemove={(e) => handleHover(e, country)}
-        onmouseleave={() => showTooltip = false}
-      />
-    {/if}
-  {/each}
-  
-  <!-- Hovered country (renders last, paints on top) -->
-  {#each countries as country}
-    {#if hoveredCountry?.id === country.id}
-      <path
-        d={country.path}
-        fill={country.color}
-        class="hovered"
-        onmousemove={(e) => handleHover(e, country)}
-        onmouseleave={() => showTooltip = false}
-      />
-    {/if}
-  {/each}
-</svg>
-
-<!-- Tooltip -->
-{#if showTooltip && hoveredCountry}
-  <Tooltip x={tooltipX} y={tooltipY} offset={12}>
-    {#snippet children()}
-      <div class="country-tooltip">
-        <strong>{hoveredCountry.name}</strong>
-        <p>Population: {(hoveredCountry.population / 1_000_000).toFixed(1)}M</p>
-        {#if hoveredCountry.group}
-          <span class="badge">{hoveredCountry.group}</span>
-        {/if}
-      </div>
-    {/snippet}
+{#if hovered}
+  <Tooltip {x} {y} offset={12} align="center">
+    <div class="my-tooltip">{hovered.label}: {hovered.value}</div>
   </Tooltip>
 {/if}
-
-<style>
-  path {
-    stroke: white;
-    stroke-width: 0.7px;
-    cursor: pointer;
-    transition: stroke 0.15s, stroke-width 0.15s;
-  }
-  
-  path.hovered {
-    stroke: #333;
-    stroke-width: 2px;
-    paint-order: stroke fill;
-  }
-  
-  .country-tooltip {
-    background: white;
-    padding: 0.75rem 1rem;
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    font-size: 0.875rem;
-    min-width: 140px;
-  }
-  
-  .country-tooltip strong {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: #333;
-  }
-  
-  .badge {
-    display: inline-block;
-    padding: 0.2rem 0.5rem;
-    border-radius: 3px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    background: rgba(0, 0, 0, 0.1);
-    margin-top: 0.25rem;
-  }
-</style>
 ```
+
+Content is the default `children`, so you can pass it directly (no explicit
+`{#snippet children()}` needed). Always feed **viewport** coords (`clientX/clientY`),
+never `offsetX`/`layerX`.
+
+---
+
+## `AnchoredTooltip.svelte` — anchoring to a data point
+
+Cursor-following is right for continuous/dense data. For **discrete points**, it
+often reads better to pin the tooltip to the datum so it steps with the marker.
+`AnchoredTooltip` does that without any manual scale/projection math: it drops a
+zero-size anchor at its own mount position and measures it, then feeds those viewport
+coords to `Tooltip`. It must therefore be placed somewhere already positioned at the
+point — with SveltePlot, that's inside `<HTMLTooltip>` (whose wrapper sits on the
+hovered datum).
+
+### Props
+
+Same as `Tooltip` (`offset`, `margin`, `align`, `side`, `target`, `children`) **minus
+`x`/`y`** (measured, not passed), **plus**:
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `key` | unknown | Any value that changes when the anchored point moves (e.g. the `datum`). Triggers a re-measure. Pass it or the box won't follow point-to-point. |
+
+---
+
+## SveltePlot usage (the ProductionVolumes pattern)
+
+SveltePlot hides pointer events behind `Pointer`/`HTMLTooltip`, so:
+
+1. Use `<Pointer>` for the nearest-point search + the `RuleX`/`Dot` marker.
+2. Use `<HTMLTooltip>` **only as the datum source** (its own box is `position:absolute`
+   inside the plot and clips — we don't use it to render).
+3. Render our shell from inside `HTMLTooltip`'s `children` snippet.
+
+```svelte
+{#snippet overlay()}
+  <HTMLTooltip data={hoverRows} x="date" y={(d) => d.volume || 1e-9}>
+    {#snippet children({ datum })}
+      {#if datum}
+        <!-- anchored to the dot -->
+        <AnchoredTooltip key={datum} offset={12} align="center" target=".scrollo-story">
+          {@render tipBody(datum)}
+        </AnchoredTooltip>
+        <!-- …or cursor-following: <Tooltip x={tipX} y={tipY} … /> with a
+             pointermove handler on the plot wrapper writing tipX/tipY -->
+      {/if}
+    {/snippet}
+  </HTMLTooltip>
+{/snippet}
+```
+
+Notes specific to this project:
+- **`target=".scrollo-story"`** — our fonts/design tokens are scoped to that
+  container, not `:root`. Portaling to `<body>` would drop them (tooltip renders in
+  Times New Roman). See "Portaling".
+- The **`|| 1e-9`** on `y` works around a SveltePlot bug where a literal `0` collapses
+  `HTMLTooltip`'s placement (the displayed value is still the real `0`).
+- Also set an explicit `font-family`/`color` on your tooltip content: once portaled it
+  no longer inherits from `.chart`.
+
+---
+
+## How it works
+
+### Placement: preference → flip → clamp
+Placement uses the box's **measured** size, so it adapts to any content:
+- **Prefer** the `align`/`side` position (e.g. `center` + `bottom` = centered beneath).
+- **Flip** to the opposite side if the preferred one would overflow the far edge
+  (`center` doesn't flip — the clamp handles it).
+- **Clamp** the final position to `[margin, viewport − size − margin]`, so it can never
+  clip even if the box is larger than the gap on both sides (it sits flush instead).
+
+Viewport size is read from `document.documentElement.clientWidth/Height`, **not**
+`window.innerWidth/Height` — the latter include the scrollbar gutter, which would let
+the box slide under a vertical scrollbar on the right.
+
+### Portaling (always on top, keep your styles)
+The box is portaled (via an `{@attach}`) out of its subtree so it renders in the
+destination's stacking context. `position: fixed` escapes *clipping* but not the
+*paint order* of DOM ancestors — without the portal, a later sibling (or any ancestor
+that forms a stacking context, e.g. a `transform`ed axis label) can paint over it.
+
+**Choosing `target`:**
+- Fonts/tokens on `:root`/global → default `<body>` is fine.
+- Fonts/tokens scoped to a container (this project: `.scrollo-story`) → set
+  `target` to that container. `<body>` is outside the scope, so an inherited
+  `font-family` and every `var(--token)` would break. Because `target` uses
+  `closest()`, it lands in the nearest matching ancestor while still escaping panels.
+- Belt-and-suspenders: set `font-family`/`color` explicitly on your content so it
+  never depends on where it's portaled.
 
 ---
 
 ## Troubleshooting
 
-### Tooltip appears in wrong position
-- ✅ Use `event.clientX/clientY` not `event.offsetX/layerX`
-- ✅ Tooltip uses `position: fixed` (matches viewport coordinates)
-
-### Tooltip flickers on hover
-- ✅ Increase `offset` prop (try 12 or 16)
-- ✅ Tooltip has `pointer-events: none` built-in
-
-### Tooltip cut off at edges
-- ✅ Edge detection is automatic (250px right, 150px bottom thresholds)
-- ✅ If still cut off, increase thresholds in component source
-
-### Hover stroke covered by neighbors
-- ✅ Render hovered element last (two-pass rendering)
-- ✅ SVG paints in DOM order, not z-index
-
-### Stroke darkens fill color
-- ✅ Add `paint-order: stroke fill` to hovered element
-- ✅ Makes stroke push outward instead of covering fill
+| Symptom | Fix |
+|---------|-----|
+| Giant tooltip / demo content | You imported `Tooltip.example.svelte`. Import `Tooltip.svelte`. |
+| Wrong position | Use `clientX/clientY` (viewport), not `offsetX/layerX`. |
+| Renders in Times New Roman / loses colors | Portaled outside the token scope. Set `target` to your scope container (`.scrollo-story`) and/or set `font-family`/`color` on the content. |
+| Covered by other elements | It's portaled + `z-index: 9999`; check nothing else uses a higher z-index in the portal target. |
+| Clipped at the right edge only | Ensure you're on the current shell — it clamps to `clientWidth` (scrollbar-aware), not `innerWidth`. |
+| Cut off at an edge | Automatic (measure + flip + clamp). Want more breathing room? Raise `margin`. |
+| Flickers on hover | Increase `offset`; the box already has `pointer-events: none`. |
+| Anchored box doesn't follow points | Pass a `key` that changes per point (e.g. `key={datum}`). |
 
 ---
 
-## Performance Notes
-
-- **Edge detection**: Simple arithmetic, zero overhead
-- **Two-pass rendering**: Only 1 extra element rendered (the hovered one)
-- **Svelte 5 reactivity**: Efficient updates, no manual DOM manipulation
-
----
-
-## Browser Support
-
-- ✅ All modern browsers (Chrome, Firefox, Safari, Edge)
-- ✅ `paint-order` supported since 2014-2018
-- ✅ `position: fixed` universal support
-
----
-
-## Key Takeaways
-
-1. **Use `clientX/clientY` with `position: fixed`** for viewport-relative tooltips
-2. **Add offset** (8-12px) to prevent flickering
-3. **Render hovered SVG element last** for proper stroke visibility
-4. **Use `paint-order: stroke fill`** to prevent stroke from covering fill
-5. **Edge detection is automatic** - tooltip flips near viewport edges
-6. **Svelte 5 snippets** - use `{@render children()}` instead of `<slot>`
-
----
-
-## Files Created
-
-- `Tooltip.svelte` - Main component (Svelte 5)
-- `Tooltip.example.svelte` - Interactive demo
-- `migrate/Figure.Tooltip.svelte` - Original Svelte 4 version (reference)
-
-**Note**: Previously named `Figure.Tooltip`, but the Figure context was never used. This is now a general-purpose tooltip that works anywhere, especially well with SVG.
-
-**Status**: ✅ Production-ready
+**Status:** ✅ Production-ready · Svelte 5 (runes, `{@attach}`, snippets) · TypeScript.
